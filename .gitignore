@@ -1,0 +1,6 @@
+
+*.o
+bin/
+data/*
+results/*
+.DS_Store

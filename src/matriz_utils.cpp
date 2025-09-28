@@ -80,3 +80,4 @@ Matriz* ler_matriz_arquivo(const std::string& nome_arquivo) {
     }
     arq_entrada.close();
     return m;
+};

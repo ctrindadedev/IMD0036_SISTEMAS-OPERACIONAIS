@@ -3,9 +3,10 @@
 #include <fstream>
 #include <pthread.h>
 #include <vector>
+#include <string> 
+#include <cmath>  
+#include <iomanip> 
 #include "matriz_utils.h"
-
-// Estrutura para passar dados para as threads
 struct DadosThread {
     Matriz* A;
     Matriz* B;
@@ -15,33 +16,6 @@ struct DadosThread {
     int thread_id;
 };
 
-// Função para carregar matriz de arquivo
-Matriz* carregar_matriz_arquivo(const std::string& nome_arquivo) {
-    std::ifstream arquivo(nome_arquivo);
-    if (!arquivo.is_open()) {
-        std::cerr << "Erro ao abrir arquivo: " << nome_arquivo << std::endl;
-        return nullptr;
-    }
-    
-    int linhas, colunas;
-    arquivo >> linhas >> colunas;
-    
-    Matriz* m = criar_matriz(linhas, colunas);
-    if (m == nullptr) {
-        std::cerr << "Erro ao criar matriz" << std::endl;
-        return nullptr;
-    }
-    
-    for (int i = 0; i < linhas; i++) {
-        for (int j = 0; j < colunas; j++) {
-            arquivo >> m->dados[i][j];
-        }
-    }
-    
-    arquivo.close();
-    return m;
-}
-
 // Função executada por cada thread
 void* thread_multiplicacao(void* arg) {
     DadosThread* dados = (DadosThread*)arg;
@@ -49,7 +23,10 @@ void* thread_multiplicacao(void* arg) {
     std::cout << "Thread " << dados->thread_id << " processando linhas " << dados->linha_inicio 
               << " a " << dados->linha_fim - 1 << std::endl;
     
-    // Multiplicar faixa de linhas
+    //  Medir o tempo de execução DENTRO da thread
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    // Multiplicar faixa de linhas 
     for (int i = dados->linha_inicio; i < dados->linha_fim; i++) {
         for (int j = 0; j < dados->B->n_colunas; j++) {
             dados->C->dados[i][j] = 0.0;
@@ -59,6 +36,29 @@ void* thread_multiplicacao(void* arg) {
         }
     }
     
+    //Finalizar a medição de tempo
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> tempo_execucao = end_time - start_time;
+
+    std::string nome_arq_saida = "results/thread_" + std::to_string(dados->thread_id) + ".txt";
+    std::ofstream arq_saida(nome_arq_saida);
+    if (!arq_saida) {
+        std::cerr << "Erro ao criar arquivo de resultado para a thread " << dados->thread_id << std::endl;
+    } else {
+        arq_saida << std::fixed << std::setprecision(5);
+
+        // Escreve as linhas calculadas por esta thread no arquivo
+        for (int i = dados->linha_inicio; i < dados->linha_fim; i++) {
+            for (int j = 0; j < dados->C->n_colunas; j++) {
+                arq_saida << dados->C->dados[i][j] << " ";
+            }
+            arq_saida << "\n";
+        }
+        // Adiciona o tempo de execução da thread no final do arquivo
+        arq_saida << "TEMPO," << tempo_execucao.count() << "\n";
+        arq_saida.close();
+    }
+
     std::cout << "Thread " << dados->thread_id << " concluída" << std::endl;
     return nullptr;
 }
@@ -123,44 +123,44 @@ Matriz* multiplicar_matrizes_paralelo_threads(Matriz* A, Matriz* B, int num_thre
 
 int main(int argc, char* argv[]) {
     if (argc != 4) {
-        std::cerr << "Uso: " << argv[0] << " <arquivo_matriz1> <arquivo_matriz2> <num_threads>" << std::endl;
+        std::cerr << "Uso: " << argv[0] << " <arquivo_matriz1> <arquivo_matriz2> <P>" << std::endl;
         return 1;
     }
     
     std::string arquivo_m1 = argv[1];
     std::string arquivo_m2 = argv[2];
-    int num_threads = std::atoi(argv[3]);
+    int p = std::atoi(argv[3]); 
     
-    if (num_threads <= 0) {
-        std::cerr << "Número de threads deve ser positivo" << std::endl;
+    if (p <= 0) {
+        std::cerr << "P (elementos por tarefa) deve ser positivo" << std::endl;
         return 1;
     }
-    
+
     // Carregar matrizes
-    Matriz* m1 = carregar_matriz_arquivo(arquivo_m1);
+    Matriz* m1 = ler_matriz_arquivo(arquivo_m1);
     if (m1 == nullptr) {
         std::cerr << "Erro ao carregar matriz 1" << std::endl;
         return 1;
     }
     
-    Matriz* m2 = carregar_matriz_arquivo(arquivo_m2);
+    Matriz* m2 = ler_matriz_arquivo(arquivo_m2);
     if (m2 == nullptr) {
         std::cerr << "Erro ao carregar matriz 2" << std::endl;
         liberar_matriz(m1);
         return 1;
     }
     
+    // Calcular o número de threads com base em 'P' e no total de elementos, pelo calculo do número de threads necessário para cobrir todas as linhas
+    long long total_elementos = (long long)m1->n_linhas * m2->n_colunas;
+    int num_threads = std::ceil((double)total_elementos / p);
+
+    
     std::cout << "Multiplicando matrizes " << m1->n_linhas << "x" << m1->n_colunas 
               << " e " << m2->n_linhas << "x" << m2->n_colunas 
               << " com " << num_threads << " threads..." << std::endl;
     
-    // Medir tempo de execução
-    auto inicio = std::chrono::high_resolution_clock::now();
     
     Matriz* resultado = multiplicar_matrizes_paralelo_threads(m1, m2, num_threads);
-    
-    auto fim = std::chrono::high_resolution_clock::now();
-    auto duracao = std::chrono::duration_cast<std::chrono::milliseconds>(fim - inicio);
     
     if (resultado == nullptr) {
         std::cerr << "Erro na multiplicação" << std::endl;
@@ -169,15 +169,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    // Salvar resultado
-    std::string arquivo_resultado = "results/resultado_paralelo_threads.txt";
-    if (!salvar_matriz_arquivo(resultado, arquivo_resultado)) {
-        std::cerr << "Erro ao salvar resultado" << std::endl;
-    } else {
-        std::cout << "Resultado salvo em " << arquivo_resultado << std::endl;
-    }
-    
-    std::cout << "Tempo de execução: " << duracao.count() << " ms" << std::endl;
+    std::cout << "Processo concluido. Verifique os arquivos individuais na pasta 'results/'." << std::endl;
     
     // Liberar memória
     liberar_matriz(m1);

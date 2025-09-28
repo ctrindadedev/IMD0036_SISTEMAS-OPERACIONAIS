@@ -1,1 +1,1 @@
-Direitorio  para salvar as matrizes que usaremos de entrada (as geradas pelo futuro auxiliar.cpp)
+Direitorio  para salvar as matrizes que usaremos de entrada -> a geração PRECISA ser ignorada pelo git.

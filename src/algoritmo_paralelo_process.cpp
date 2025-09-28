@@ -1,6 +1,7 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+#include <vector>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/ipc.h>
@@ -187,3 +188,4 @@ int main(int argc, char* argv[]) {
     
     return 0;
 }
+

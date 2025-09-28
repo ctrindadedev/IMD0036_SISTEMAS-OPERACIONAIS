@@ -19,7 +19,7 @@ void liberar_matriz(Matriz* m) {
 
 void preencher_matriz(Matriz* m) {
     if (m == nullptr) return;
-    // Algoritmo gerador de números com c++ de forma moderna, encontrado na internet (Adaptado para gerar só números de 0 a 10)
+    // Algoritmo gerador de números com c++ de forma moderna, encontrado na internet(https://en.cppreference.com/w/cpp/numeric/random/uniform_real_distribution.html) (Adaptado para gerar só números de 0 a 10)
     static std::mt19937 gen(std::random_device{}());
     std::uniform_real_distribution<> dis(0.0, 10.0);
     for (int i = 0; i < m->n_linhas; i++) {
@@ -47,3 +47,37 @@ bool salvar_matriz_arquivo(Matriz* m, const std::string& nome_arquivo) {
     arq_saida.close();
     return true; 
 }
+
+Matriz* ler_matriz_arquivo(const std::string& nome_arquivo) {
+    std::ifstream arq_entrada(nome_arquivo);
+    if (!arq_entrada.is_open()) {
+        std::cerr << "Erro ao abrir arquivo para leitura: " << nome_arquivo << std::endl;
+        return nullptr;
+    }
+
+    int linhas, colunas;
+    if (!(arq_entrada >> linhas >> colunas)) {
+        std::cerr << "Erro: Formato de arquivo invalido (dimensoes)." << std::endl;
+        arq_entrada.close();
+        return nullptr;
+    }
+
+    Matriz* m = criar_matriz(linhas, colunas);
+    if (m == nullptr) {
+        arq_entrada.close();
+        return nullptr;
+    }
+
+    for (int i = 0; i < linhas; i++) {
+        for (int j = 0; j < colunas; j++) {
+            if (!(arq_entrada >> m->dados[i][j])) {
+                std::cerr << "Erro: Dados da matriz incompletos ou invalidos." << std::endl;
+                liberar_matriz(m);
+                arq_entrada.close();
+                return nullptr;
+            }
+        }
+    }
+    arq_entrada.close();
+    return m;
+};

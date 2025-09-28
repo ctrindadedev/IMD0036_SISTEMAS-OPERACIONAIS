@@ -22,4 +22,7 @@ void preencher_matriz(Matriz* m);
 
 bool salvar_matriz_arquivo(Matriz* m, const std::string& nome_arquivo);
 
+Matriz* ler_matriz_arquivo(const std::string& nome_arquivo);
+
+
 #endif 

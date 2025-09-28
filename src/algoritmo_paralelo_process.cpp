@@ -1,191 +1,151 @@
 #include <iostream>
-#include <chrono>
-#include <fstream>
+#include <string>
 #include <vector>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <cstring>
-#include "matriz_utils.h"
+#include <cstdlib>
+#include <chrono>
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+//específicos para Processos e IPC
+#include <unistd.h>    
+#include <sys/wait.h>   
+#include <sys/ipc.h>    
+#include <sys/shm.h>     
+#include "matriz_utils.h" 
 
-// Estrutura para compartilhar dados entre processos
-struct DadosCompartilhados {
-    int n_linhas_A;
-    int n_colunas_A;
-    int n_linhas_B;
-    int n_colunas_B;
-    int n_linhas_C;
-    int n_colunas_C;
-    int linha_inicio;
-    int linha_fim;
-    int processo_id;
-};
-
-// Função para carregar matriz de arquivo
-Matriz* carregar_matriz_arquivo(const std::string& nome_arquivo) {
-    std::ifstream arquivo(nome_arquivo);
-    if (!arquivo.is_open()) {
-        std::cerr << "Erro ao abrir arquivo: " << nome_arquivo << std::endl;
-        return nullptr;
+// É importante chamar essa função para não deixar lixo no SO (Independente de erro ou sucesso)
+void cleanup_shm(int shmid) {
+    if (shmctl(shmid, IPC_RMID, NULL) == -1) {
+        perror("shmctl");
     }
-    
-    int linhas, colunas;
-    arquivo >> linhas >> colunas;
-    
-    Matriz* m = criar_matriz(linhas, colunas);
-    if (m == nullptr) {
-        std::cerr << "Erro ao criar matriz" << std::endl;
-        return nullptr;
-    }
-    
-    for (int i = 0; i < linhas; i++) {
-        for (int j = 0; j < colunas; j++) {
-            arquivo >> m->dados[i][j];
-        }
-    }
-    
-    arquivo.close();
-    return m;
-}
-
-// Função para multiplicar uma faixa de linhas da matriz
-void multiplicar_faixa_linhas(Matriz* A, Matriz* B, Matriz* C, int linha_inicio, int linha_fim) {
-    for (int i = linha_inicio; i < linha_fim; i++) {
-        for (int j = 0; j < B->n_colunas; j++) {
-            C->dados[i][j] = 0.0;
-            for (int k = 0; k < A->n_colunas; k++) {
-                C->dados[i][j] += A->dados[i][k] * B->dados[k][j];
-            }
-        }
-    }
-}
-
-// Função executada por cada processo filho
-void processo_filho(Matriz* A, Matriz* B, Matriz* C, int linha_inicio, int linha_fim, int processo_id) {
-    std::cout << "Processo " << processo_id << " processando linhas " << linha_inicio 
-              << " a " << linha_fim - 1 << std::endl;
-    
-    multiplicar_faixa_linhas(A, B, C, linha_inicio, linha_fim);
-    
-    std::cout << "Processo " << processo_id << " concluído" << std::endl;
-    exit(0);
-}
-
-// Função principal de multiplicação paralela com processos
-Matriz* multiplicar_matrizes_paralelo_processos(Matriz* A, Matriz* B, int num_processos) {
-    if (A->n_colunas != B->n_linhas) {
-        std::cerr << "Erro: Dimensões incompatíveis para multiplicação" << std::endl;
-        return nullptr;
-    }
-    
-    Matriz* C = criar_matriz(A->n_linhas, B->n_colunas);
-    if (C == nullptr) {
-        return nullptr;
-    }
-    
-    // Calcular quantas linhas cada processo vai processar
-    int linhas_por_processo = A->n_linhas / num_processos;
-    int linhas_restantes = A->n_linhas % num_processos;
-    
-    std::vector<pid_t> pids(num_processos);
-    int linha_atual = 0;
-    
-    // Criar processos filhos
-    for (int i = 0; i < num_processos; i++) {
-        int linhas_para_este_processo = linhas_por_processo + (i < linhas_restantes ? 1 : 0);
-        int linha_fim = linha_atual + linhas_para_este_processo;
-        
-        pid_t pid = fork();
-        
-        if (pid == 0) {
-            // Processo filho
-            processo_filho(A, B, C, linha_atual, linha_fim, i);
-        } else if (pid > 0) {
-            // Processo pai
-            pids[i] = pid;
-            std::cout << "Criado processo " << i << " com PID " << pid << std::endl;
-        } else {
-            std::cerr << "Erro ao criar processo filho " << i << std::endl;
-            return nullptr;
-        }
-        
-        linha_atual = linha_fim;
-    }
-    
-    // Aguardar todos os processos filhos terminarem
-    for (int i = 0; i < num_processos; i++) {
-        int status;
-        waitpid(pids[i], &status, 0);
-        std::cout << "Processo " << i << " (PID " << pids[i] << ") terminou" << std::endl;
-    }
-    
-    return C;
 }
 
 int main(int argc, char* argv[]) {
     if (argc != 4) {
-        std::cerr << "Uso: " << argv[0] << " <arquivo_matriz1> <arquivo_matriz2> <num_processos>" << std::endl;
+        std::cerr << "Uso: " << argv[0] << " <arquivo_matriz1> <arquivo_matriz2> <P>" << std::endl;
+        return 1;
+    }
+    std::string arquivo_a = argv[1];
+    std::string arquivo_b = argv[2];
+    int p = std::atoi(argv[3]);
+    Matriz* a = ler_matriz_arquivo(arquivo_a);
+    Matriz* b = ler_matriz_arquivo(arquivo_b);
+
+    if (a == nullptr || b == nullptr) {
+        return 1;
+    }
+    if (a->n_colunas != b->n_linhas) {
+        std::cerr << "Erro: Matrizes nao multiplicaveis." << std::endl;
+        liberar_matriz(a);
+        liberar_matriz(b);
+        return 1;
+    }
+
+    int resultado_linhas = a->n_linhas;
+    int resultado_colunas = b->n_colunas;
+    long long total_elementos = (long long)resultado_linhas * resultado_colunas;
+    int num_processos = std::ceil((double)total_elementos / p);
+
+    std::cout << "Executando com " << num_processos << " processos..." << std::endl;
+
+    // Cria o segmento de memória compartilhada, com ftok para gerar uma chave para a memória
+    key_t key = ftok("shmfile", 65);
+    if (key == -1) {
+        perror("ftok");
+        return 1;
+    }
+
+    // Tamanho necessário para a matriz resultado
+    size_t shm_size = resultado_linhas * resultado_colunas * sizeof(double);
+
+    int shmid = shmget(key, shm_size, 0666 | IPC_CREAT);
+    if (shmid == -1) {
+        perror("shmget");
+        return 1;
+    }
+
+   //Anexa o segmento de memória ao espaço de endereçamento deste processo
+
+    double* matriz_resultado_shm = (double*)shmat(shmid, NULL, 0);
+    if (matriz_resultado_shm == (void*)-1) {
+        perror("shmat (pai)");
+        cleanup_shm(shmid); 
         return 1;
     }
     
-    std::string arquivo_m1 = argv[1];
-    std::string arquivo_m2 = argv[2];
-    int num_processos = std::atoi(argv[3]);
+    std::vector<pid_t> pids;  //(PIDs dos filhos)
+
+    for (int i = 0; i < num_processos; ++i) {
+        pid_t pid = fork();
+
+        if (pid < 0) {
+            perror("fork");
+            cleanup_shm(shmid);
+            return 1;
+        }
+
+        if (pid == 0) { 
+            
+            // O filho também precisa se anexar para poder acessar a mesma memória
+            double* resultado_filho_ptr = (double*)shmat(shmid, NULL, 0);
+            if (resultado_filho_ptr == (void*)-1) {
+                perror("shmat (filho)");
+                exit(1); 
+            }
+            
+            long long inicio_elemento = (long long)i * p;
+            long long fim_elemento = std::min(inicio_elemento + p, total_elementos);
+
+            auto start_time = std::chrono::high_resolution_clock::now();
+            
+            for (long long idx = inicio_elemento; idx < fim_elemento; ++idx) {
+                int linha = idx / resultado_colunas;
+                int col = idx % resultado_colunas;
+                double soma = 0.0;
+                for (int k = 0; k < a->n_colunas; ++k) {
+                    soma += a->dados[linha][k] * b->dados[k][col];
+                }
+                // Escreve o resultado DIRETAMENTE na memória compartilhada
+                resultado_filho_ptr[idx] = soma;
+            }
+            
+            auto end_time = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> tempo_execucao = end_time - start_time;
+
+            std::string nome_arq_saida = "results/proc_" + std::to_string(i) + ".txt";
+            std::ofstream arq_saida(nome_arq_saida);
+            arq_saida << std::fixed << std::setprecision(5);
+            
+            for (long long idx = inicio_elemento; idx < fim_elemento; ++idx) {
+                 arq_saida << resultado_filho_ptr[idx] << "\n";
+            }
+            arq_saida << "TEMPO," << tempo_execucao.count() << "\n";
+            arq_saida.close();
+
     
-    if (num_processos <= 0) {
-        std::cerr << "Número de processos deve ser positivo" << std::endl;
-        return 1;
+            shmdt(resultado_filho_ptr);
+            
+            exit(0); 
+        } else {
+            pids.push_back(pid);
+        }
+    }
+
+    //Pai aguarda todos processos-filhos terminarem
+    for (pid_t pid : pids) {
+        waitpid(pid, NULL, 0);
     }
     
-    // Carregar matrizes
-    Matriz* m1 = carregar_matriz_arquivo(arquivo_m1);
-    if (m1 == nullptr) {
-        std::cerr << "Erro ao carregar matriz 1" << std::endl;
-        return 1;
-    }
+    std::cout << "Todos os processos filhos terminaram." << std::endl;
     
-    Matriz* m2 = carregar_matriz_arquivo(arquivo_m2);
-    if (m2 == nullptr) {
-        std::cerr << "Erro ao carregar matriz 2" << std::endl;
-        liberar_matriz(m1);
-        return 1;
-    }
+    // Desanexar da memória compartilhada
+    shmdt(matriz_resultado_shm);
     
-    std::cout << "Multiplicando matrizes " << m1->n_linhas << "x" << m1->n_colunas 
-              << " e " << m2->n_linhas << "x" << m2->n_colunas 
-              << " com " << num_processos << " processos..." << std::endl;
+    // Marcar o segmento para destruição
+    cleanup_shm(shmid);    
     
-    // Medir tempo de execução
-    auto inicio = std::chrono::high_resolution_clock::now();
-    
-    Matriz* resultado = multiplicar_matrizes_paralelo_processos(m1, m2, num_processos);
-    
-    auto fim = std::chrono::high_resolution_clock::now();
-    auto duracao = std::chrono::duration_cast<std::chrono::milliseconds>(fim - inicio);
-    
-    if (resultado == nullptr) {
-        std::cerr << "Erro na multiplicação" << std::endl;
-        liberar_matriz(m1);
-        liberar_matriz(m2);
-        return 1;
-    }
-    
-    // Salvar resultado
-    std::string arquivo_resultado = "results/resultado_paralelo_processos.txt";
-    if (!salvar_matriz_arquivo(resultado, arquivo_resultado)) {
-        std::cerr << "Erro ao salvar resultado" << std::endl;
-    } else {
-        std::cout << "Resultado salvo em " << arquivo_resultado << std::endl;
-    }
-    
-    std::cout << "Tempo de execução: " << duracao.count() << " ms" << std::endl;
-    
-    // Liberar memória
-    liberar_matriz(m1);
-    liberar_matriz(m2);
-    liberar_matriz(resultado);
-    
+    liberar_matriz(a);
+    liberar_matriz(b);
+
     return 0;
 }
-

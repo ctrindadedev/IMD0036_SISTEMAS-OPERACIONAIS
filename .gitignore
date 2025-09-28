@@ -1,0 +1,7 @@
+
+*.o
+#Após clonar o repositório, remover esses comentarios (essas pastas vão armazenar diversos dados dos nossos algoritmos)
+# bin/
+# data/*
+# results/*
+.DS_Store

@@ -1,0 +1,1 @@
+Direitorio  para salvar as matrizes que usaremos de entrada (as geradas pelo futuro auxiliar.cpp)

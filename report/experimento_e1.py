@@ -5,6 +5,7 @@ import subprocess
 import os
 import time
 import json
+import math
 
 # Configurações do experimento;
 tamanhos_ = [100, 200, 400, 800, 1600]
@@ -12,41 +13,68 @@ vezes_ = 10
 algoritmos_ = ['sequencial', 'threads', 'processos']
 resultados_ = {}
 
-print("=== EXPERIMENTO E1 ===")
-print("Testando algoritmos de multiplicação de matrizes")
-print()
+def ler_tempo_maximo_(algoritmo_):
+    """Lê o tempo máximo dos arquivos de resultado dos algoritmos paralelos;"""
+    if algoritmo_ == 'threads':
+        arquivos_ = os.listdir('../results')
+        arquivos_thread_ = [f for f in arquivos_ if f.startswith('thread_')]
+    else:  # processos
+        arquivos_ = os.listdir('../results')
+        arquivos_thread_ = [f for f in arquivos_ if f.startswith('proc_')]
+    
+    tempo_maximo_ = 0
+    for arquivo_ in arquivos_thread_:
+        try:
+            with open(f'../results/{arquivo_}', 'r') as f:
+                linha_ = f.readline().strip()
+                tempo_ = float(linha_)
+                if tempo_ > tempo_maximo_:
+                    tempo_maximo_ = tempo_
+        except:
+            pass
+    
+    return tempo_maximo_
+
+def calcular_p_(tamanho_):
+    """Calcula o valor de P conforme especificação do trabalho;"""
+    # P = ceil(n1 * m2 / 8) onde n1 = m2 = tamanho_;
+    return math.ceil((tamanho_ * tamanho_) / 8)
+
+# Cria diretórios necessários;
+os.makedirs('../bin', exist_ok=True)
+os.makedirs('../data', exist_ok=True)
+os.makedirs('../results', exist_ok=True)
 
 # Loop principal do experimento;
 for tamanho_ in tamanhos_:
-    print(f"Testando matrizes {tamanho_}x{tamanho_}...")
+    print(f"Matriz {tamanho_}x{tamanho_}:")
     
     # Gera matrizes de teste;
-    print("  Gerando matrizes...")
-    comando_gerar_ = ["./bin/auxiliar", str(tamanho_), str(tamanho_), str(tamanho_), str(tamanho_)]
+    comando_gerar_ = ["../bin/auxiliar", str(tamanho_), str(tamanho_), str(tamanho_), str(tamanho_)]
     subprocess.run(comando_gerar_, check=True)
+    
+    # Calcula valor de P conforme especificação do trabalho;
+    p_ = calcular_p_(tamanho_)
     
     # Testa cada algoritmo;
     for algoritmo_ in algoritmos_:
-        print(f"  Testando {algoritmo_}...")
         tempos_ = []
         
         # Executa 10 vezes para calcular média;
         for i_ in range(vezes_):
-            print(f"    Execução {i_+1}/{vezes_}: ", end="")
-            
             # Limpa resultados anteriores;
             if algoritmo_ == 'threads':
-                os.system("rm -f results/thread_*.txt")
+                os.system("rm -f ../results/thread_*.txt")
             elif algoritmo_ == 'processos':
-                os.system("rm -f results/proc_*.txt")
+                os.system("rm -f ../results/proc_*.txt")
             
             # Monta comando específico;
             if algoritmo_ == 'sequencial':
-                comando_ = ["./bin/algoritmo_sequencial", "data/m1.txt", "data/m2.txt"]
+                comando_ = ["../bin/algoritmo_sequencial", "../data/m1.txt", "../data/m2.txt"]
             elif algoritmo_ == 'threads':
-                comando_ = ["./bin/algoritmo_paralelo_threads", "data/m1.txt", "data/m2.txt", "4"]
+                comando_ = ["../bin/algoritmo_paralelo_threads", "../data/m1.txt", "../data/m2.txt", str(p_)]
             else:  # processos
-                comando_ = ["./bin/algoritmo_paralelo_process", "data/m1.txt", "data/m2.txt", "4"]
+                comando_ = ["../bin/algoritmo_paralelo_process", "../data/m1.txt", "../data/m2.txt", str(p_)]
             
             # Executa e mede tempo;
             inicio_ = time.time()
@@ -65,14 +93,13 @@ for tamanho_ in tamanhos_:
                     tempo_execucao_ = ler_tempo_maximo_(algoritmo_)
                 
                 tempos_.append(tempo_execucao_)
-                print(f"{tempo_execucao_:.3f}s")
             else:
-                print("ERRO")
+                print(f"ERRO em {algoritmo_}")
         
         # Calcula tempo médio e salva resultado;
         if tempos_:
             tempo_medio_ = sum(tempos_) / len(tempos_)
-            print(f"  {algoritmo_}: tempo médio = {tempo_medio_:.3f}s")
+            print(f"  {algoritmo_}: {tempo_medio_:.3f}s")
             
             if tamanho_ not in resultados_:
                 resultados_[tamanho_] = {}
@@ -86,27 +113,4 @@ for tamanho_ in tamanhos_:
 with open('experimento_e1_results.json', 'w') as f:
     json.dump(resultados_, f, indent=2)
 
-print("=== EXPERIMENTO CONCLUÍDO ===")
 print("Resultados salvos em: experimento_e1_results.json")
-
-def ler_tempo_maximo_(algoritmo_):
-    """Lê o tempo máximo dos arquivos de resultado dos algoritmos paralelos;"""
-    if algoritmo_ == 'threads':
-        arquivos_ = os.listdir('results')
-        arquivos_thread_ = [f for f in arquivos_ if f.startswith('thread_')]
-    else:  # processos
-        arquivos_ = os.listdir('results')
-        arquivos_thread_ = [f for f in arquivos_ if f.startswith('proc_')]
-    
-    tempo_maximo_ = 0
-    for arquivo_ in arquivos_thread_:
-        try:
-            with open(f'results/{arquivo_}', 'r') as f:
-                linha_ = f.readline().strip()
-                tempo_ = float(linha_)
-                if tempo_ > tempo_maximo_:
-                    tempo_maximo_ = tempo_
-        except:
-            pass
-    
-    return tempo_maximo_

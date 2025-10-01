@@ -31,19 +31,16 @@ cd IMD0036_SISTEMAS-OPERACIONAIS
 
     É altamente recomendado usar um ambiente virtual para isolar as dependências do projeto, e não ter problemas com as bibliotecas Python.
 
-    ```bash
     # Criar o ambiente virtual
     python3 -m venv .venv
 
     # Ativar o ambiente (Linux/macOS/WSL)
     source .venv/bin/activate
-    ```
 
 ### 4. **Instale as dependências:**
 
-    ```bash
     pip install -r requirements.txt
-    ```
+  
 
     _(Para desativar, execute `deactivate`)_
 
@@ -68,3 +65,9 @@ make help
 ```
 
 ### 7. Executar experimentos
+
+O script de análise, executa os 2 experimentos solicitados pelo professor, e faz a geração de gráficos para cada experimento, facilitando a análise
+
+```bash
+ python analise.py
+```

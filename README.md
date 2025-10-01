@@ -17,6 +17,7 @@ Para compilar e executar o projeto, siga os passos abaixo.
 - Um compilador C++ (g++)
 - Ferramenta `make`
 - Ambiente Linux ou compatível (como WSL no Windows)
+- Python 3.12+
 
 ### 2. Clonagem do Repositório
 
@@ -41,8 +42,7 @@ cd IMD0036_SISTEMAS-OPERACIONAIS
 
     pip install -r requirements.txt
   
-
-    _(Para desativar, execute `deactivate`)_
+    (Para desativar, execute `deactivate`)
 
 ### 5. Compilação
 

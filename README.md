@@ -27,7 +27,27 @@ git clone [https://github.com/ctrindadedev/IMD0036_SISTEMAS-OPERACIONAIS.git](ht
 cd IMD0036_SISTEMAS-OPERACIONAIS
 ```
 
-### 3. Compilação
+### 3. **Crie e ative um ambiente virtual:**
+
+    É altamente recomendado usar um ambiente virtual para isolar as dependências do projeto, e não ter problemas com as bibliotecas Python.
+
+    ```bash
+    # Criar o ambiente virtual
+    python3 -m venv .venv
+
+    # Ativar o ambiente (Linux/macOS/WSL)
+    source .venv/bin/activate
+    ```
+
+### 4. **Instale as dependências:**
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    _(Para desativar, execute `deactivate`)_
+
+### 5. Compilação
 
 O projeto utiliza um `Makefile` para automatizar todo o processo de compilação. O `Makefile` está na raiz do projeto e os arquivos-fonte estão na pasta `src/`.
 
@@ -39,7 +59,7 @@ make all
 
 Isso irá compilar os quatro programas (`auxiliar`, `algoritmo_sequencial`, `algoritmo_paralelo_threads` e `algoritmo_paralelo_process`) e colocá-los na pasta `bin/`.
 
-### 4. Uso e Testes Básicos
+### 6. Uso e Testes Básicos
 
 O `Makefile` contém comandos úteis para facilitar os testes durante o desenvolvimento, para acessar a lista com todos eles (E informação de outros comandos), basta executar:
 
@@ -47,4 +67,4 @@ O `Makefile` contém comandos úteis para facilitar os testes durante o desenvol
 make help
 ```
 
-## TO-DO: Script em Python para Análise e Geração de Gráficos (Etapa 2)
+### 7. Executar experimentos

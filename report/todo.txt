@@ -1,1 +1,154 @@
-Pasta para armazenar a analise de dados (graficos,etc) - com py, matplotlib
+# Relatório - Análise de Desempenho: Multiplicação de Matrizes Sequencial vs. Paralela
+
+**Disciplina:** Sistemas Operacionais (IMD0036)  
+**Universidade Federal do Rio Grande do Norte - Instituto Metrópole Digital**  
+**Trabalho Prático da Unidade 1 – Processos e Threads**
+
+**Componente 1:** 
+CAIO CESAR CACHINA DE SOUZA (KXINACC)  
+Curso: TECNOLOGIA DA INFORMAÇÃO/IMD
+Matrícula: 20240063880
+Usuário: caio.cachina.071
+E-mail: cachina040@gmail.com	
+
+**Componente 2:** 
+CAIO DE MEDEIROS TRINDADE (Perfil)
+Curso: TECNOLOGIA DA INFORMAÇÃO/IMD
+Matrícula: 20230045477
+Usuário: caio.trindade.124
+E-mail: caiomedtrindade@gmail.com
+
+---
+
+## 1. Introdução
+
+Este trabalho tem como objetivo implementar e comparar diferentes abordagens para multiplicação de matrizes, analisando o desempenho entre algoritmos sequenciais e paralelos. Foram implementadas três versões:
+
+1. **Algoritmo Sequencial**: Multiplicação tradicional usando apenas uma thread
+2. **Algoritmo Paralelo com Threads**: Usando POSIX Threads (pthreads)
+3. **Algoritmo Paralelo com Processos**: Usando fork() e memória compartilhada (IPC)
+
+O objetivo é entender quando vale a pena usar programação paralela e quais fatores influenciam no desempenho.
+
+## 2. Metodologia
+
+### 2.1 Implementação
+
+Todos os algoritmos foram implementados em C++ e seguem a mesma lógica de multiplicação de matrizes. As principais diferenças estão na forma como o trabalho é dividido:
+
+- **Sequencial**: Implementação convencional usando apenas uma thread, com medição de tempo através de `std::chrono`
+
+- **Threads**: Utiliza a biblioteca `pthread.h` para criar múltiplas threads com `pthread_create()`, sincronização via `pthread_join()` e compartilhamento de memória entre threads
+
+- **Processos**: Cria processos filhos usando `fork()`, comunicação interprocessos via `sys/shm.h` (`shmget()`, `shmat()`), sincronização através de `wait()`
+
+### 2.2 Ambiente de Teste
+
+- **Sistema Operacional**: Linux (WSL no Windows)
+- **Compilador**: g++
+- **Bibliotecas**: pthread, sys/shm.h, std::chrono
+- **Medição de tempo**: Precisão em milissegundos usando `std::chrono::high_resolution_clock`
+
+### 2.3 Como os Testes Foram Feitos
+
+Para garantir resultados confiáveis, segui as seguintes práticas:
+- Fechei todos os programas desnecessários
+- Não usei o computador durante os testes (nem o mouse)
+- Fiz 10 execuções de cada teste para ter uma média
+- Usei o mesmo ambiente para todos os testes
+- Reduzi ao mínimo o uso de memória, processador e rede
+
+### 2.4 Experimentos
+
+**Experimento E1**: Testei com matrizes de tamanhos diferentes (100x100, 200x200, 400x400, 800x800) para ver como cada algoritmo se comporta conforme o problema fica maior. O parâmetro P foi calculado como `ceil((n*n)/8)` para cada tamanho, onde n é o tamanho da matriz.
+
+**Experimento E2**: Mantive o tamanho da matriz fixo (800x800) e variei o parâmetro P (que define quantos elementos cada thread/processo vai processar) para encontrar o valor ideal. Testei os valores: 20000, 40000, 60000, 80000, 120000, 160000, 240000, 320000.
+
+## 3. Resultados e Discussão
+
+### 3.1 Análise do Experimento E1
+
+**a) Qual o motivo dos resultados obtidos no experimento E1? O que pode ter causado o comportamento observado?**
+
+![Gráfico E1](grafico_e1.png)
+
+*Figura 1: Experimento E1 - Tempo de Execução vs. Tamanho da Matriz*
+
+Analisando o gráfico do Experimento E1 (que usa escala logarítmica no eixo Y), observei comportamentos muito claros:
+
+1. **Crescimento exponencial do algoritmo sequencial**: A linha azul (Sequencial) mostra um crescimento muito acentuado - vai de ~10ms para matriz 100x100, ~40ms para 200x200, ~180ms para 400x400, até quase 900ms para matriz 800x800. Isso confirma que a complexidade O(n³) da multiplicação de matrizes realmente impacta muito o desempenho.
+
+2. **Vantagem clara dos algoritmos paralelos**: As linhas laranja (Threads) e verde (Process) estão muito próximas e são drasticamente mais rápidas que o sequencial em todos os tamanhos testados. Para matriz 800x800, enquanto o sequencial demora ~900ms, os paralelos demoram apenas ~300-350ms.
+
+3. **Diferença mínima entre Threads e Processos no E1**: Interessante notar que no E1, as implementações com threads e processos tiveram desempenhos muito similares, quase sobrepostos. Isso sugere que para este tamanho de problema, a diferença de overhead entre threads e processos não é tão significativa.
+
+4. **Escalabilidade**: Conforme o tamanho da matriz aumenta, a vantagem dos algoritmos paralelos se torna mais pronunciada. Para matrizes pequenas (100x100), os algoritmos paralelos são extremamente rápidos (~0.2-0.3ms) comparados ao sequencial (~10ms), mas a diferença fica ainda mais evidente em matrizes maiores.
+
+### 3.2 Análise do Experimento E2
+
+**b) Qual o motivo dos resultados obtidos no experimento E2? O que pode ter causado o comportamento observado?**
+
+![Gráfico E2](grafico_e2.png)
+
+*Figura 2: Experimento E2 - Tempo de Execução vs. Parâmetro P (Matriz 800x800)*
+
+O gráfico do E2 mostra comportamentos muito interessantes e diferentes do E1:
+
+1. **Comportamento oscilatório**: Diferente do E1, aqui vemos que tanto threads quanto processos apresentam comportamento "ondulante" - os tempos sobem e descem conforme o valor de P muda. Isso indica que o parâmetro P tem um impacto complexo no desempenho.
+
+2. **Mínimos diferentes para cada abordagem**: 
+   - **Threads**: Atinge um primeiro mínimo de ~332ms para P próximo de 40.000, e depois um segundo mínimo de ~325ms para P próximo de 240.000
+   - **Processos**: Atinge um mínimo de ~324ms para P próximo de 85.000
+
+3. **Diferenças entre Threads e Processos se tornam evidentes**: No E2, vemos claramente que threads e processos se comportam de forma diferente dependendo do valor de P. As linhas se cruzam várias vezes, mostrando que a escolha entre threads e processos depende do contexto.
+
+4. **Comportamento intermediário interessante**:
+   - **Threads**: Mantém-se estável entre 380-382ms para P entre 60.000-80.000, depois cai gradualmente
+   - **Processos**: Tem um pico de ~386ms para P próximo de 120.000, indicando um ponto de ineficiência específico
+
+5. **Problemas com valores extremos de P**: Para valores muito altos de P (acima de 240.000), ambos os algoritmos sofrem um aumento acentuado no tempo de execução, chegando a ~440-445ms. Isso confirma que valores muito altos de P criam poucas tarefas grandes e desperdiçam paralelismo.
+
+6. **Overhead de criação**: Para valores muito baixos de P (próximo de 25.000), ambos os algoritmos começam com tempos altos (~378-383ms), confirmando que muitas tarefas pequenas geram muito overhead.
+
+### 3.3 Valor Ideal do Parâmetro P
+
+**c) Qual é o valor de P ideal para a multiplicação das matrizes M1 e M2? Justifique sua resposta através dos experimentos realizados.**
+
+Baseado na análise do gráfico E2, posso identificar diferentes valores ideais dependendo da abordagem:
+
+**Para Threads**: O valor ideal está próximo de **240.000**, onde atingiu o menor tempo (~325ms).
+
+**Para Processos**: O valor ideal está próximo de **85.000**, onde atingiu o menor tempo (~324ms).
+
+**Justificativas:**
+
+1. **Nos gráficos**: Estes valores correspondem aos pontos mais baixos das curvas, mostrando os melhores desempenhos.
+
+2. **Diferença entre abordagens**: É interessante notar que o valor ideal é diferente para threads e processos. Para threads, um P maior funciona melhor, enquanto para processos, um P menor é mais eficiente. Isso pode estar relacionado ao overhead diferente de criação e comunicação entre threads vs processos.
+
+3. **Balanceamento**: Estes valores criam um número razoável de tarefas para uma matriz 800x800 (640.000 elementos):
+   - P=85.000 → ~7-8 tarefas (para processos)
+   - P=240.000 → ~2-3 tarefas (para threads)
+
+4. **Evita problemas**: Estes valores evitam tanto o problema de muitas tarefas pequenas (overhead excessivo) quanto o de poucas tarefas grandes (desperdício de paralelismo).
+
+5. **Comportamento específico**: Para threads, o valor de 240.000 evita o pico de ineficiência que ocorre em valores intermediários, enquanto para processos, o valor de 85.000 aproveita o mínimo local sem cair no pico de 120.000.
+
+## 4. Conclusões
+
+Através dos experimentos, aprendi que:
+
+1. **Nem sempre paralelizar vale a pena**: Para problemas pequenos, o overhead pode ser maior que o benefício
+2. **Tamanho importa**: Quanto maior o problema, mais vantajoso fica usar paralelismo
+3. **Threads e processos se comportam diferente**: No E1 foram similares, mas no E2 mostraram comportamentos distintos dependendo do parâmetro P
+4. **O parâmetro P é crucial**: Precisa ser bem escolhido para equilibrar paralelismo e overhead, e o valor ideal pode ser diferente para threads e processos
+5. **Ambiente de teste é importante**: Sem controlar o ambiente, os resultados podem ser aleatórios
+
+Os resultados confirmam a teoria de que programação paralela não é sempre a melhor solução, dependendo do tamanho do problema e da implementação escolhida.
+
+## 5. Anexos
+
+- Dados dos experimentos: `resultados_e1.csv`, `resultados_e2.csv`
+- Gráficos: `grafico_e1.png`, `grafico_e2.png`
+- Código fonte na pasta `src/`
+- Script de análise: `analise.py`

@@ -24,7 +24,7 @@ Para compilar e executar o projeto, siga os passos abaixo.
 Clone o projeto para a sua máquina local com o seguinte comando:
 
 ```bash
-git clone [https://github.com/ctrindadedev/IMD0036_SISTEMAS-OPERACIONAIS.git](https://github.com/ctrindadedev/IMD0036_SISTEMAS-OPERACIONAIS.git)
+git clone https://github.com/ctrindadedev/IMD0036_SISTEMAS-OPERACIONAIS.git
 cd IMD0036_SISTEMAS-OPERACIONAIS
 ```
 

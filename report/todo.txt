@@ -146,9 +146,3 @@ Através dos experimentos, aprendi que:
 
 Os resultados confirmam a teoria de que programação paralela não é sempre a melhor solução, dependendo do tamanho do problema e da implementação escolhida.
 
-## 5. Anexos
-
-- Dados dos experimentos: `resultados_e1.csv`, `resultados_e2.csv`
-- Gráficos: `grafico_e1.png`, `grafico_e2.png`
-- Código fonte na pasta `src/`
-- Script de análise: `analise.py`

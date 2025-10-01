@@ -7,5 +7,5 @@ results/
 .DS_Store
 .vscode
 .venv
-.png
-.csv
+*.png
+*.csv

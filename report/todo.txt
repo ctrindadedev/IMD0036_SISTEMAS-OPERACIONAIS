@@ -60,9 +60,9 @@ Para garantir resultados confiáveis, segui as seguintes práticas:
 
 ### 2.4 Experimentos
 
-**Experimento E1**: Testei com matrizes de tamanhos diferentes (100x100, 200x200, 400x400, 800x800) para ver como cada algoritmo se comporta conforme o problema fica maior. O parâmetro P foi calculado como `ceil((n*n)/8)` para cada tamanho, onde n é o tamanho da matriz.
+**Experimento E1 (Caio Cachina)**: Testei com matrizes de tamanhos diferentes (100x100, 200x200, 400x400, 800x800) para ver como cada algoritmo se comporta conforme o problema fica maior. O parâmetro P foi calculado como `ceil((n*n)/8)` para cada tamanho, onde n é o tamanho da matriz.
 
-**Experimento E2**: Mantive o tamanho da matriz fixo (800x800) e variei o parâmetro P (que define quantos elementos cada thread/processo vai processar) para encontrar o valor ideal. Testei os valores: 20000, 40000, 60000, 80000, 120000, 160000, 240000, 320000.
+**Experimento E2 (Caio Cachina)**: Mantive o tamanho da matriz fixo (800x800) e variei o parâmetro P (que define quantos elementos cada thread/processo vai processar) para encontrar o valor ideal. Testei os valores: 20000, 40000, 60000, 80000, 120000, 160000, 240000, 320000.
 
 ## 3. Resultados e Discussão
 
